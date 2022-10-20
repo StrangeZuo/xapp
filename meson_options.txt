@@ -1,0 +1,26 @@
+option('docs',
+    type: 'boolean',
+    value: false,
+    description: 'Build the API references (requires gtk-doc)'
+)
+option('deprecated_warnings',
+    type : 'boolean',
+    value : false,
+    description: 'Show build warnings for deprecations'
+)
+option('py-overrides-dir',
+    type : 'string',
+    value : '',
+    description: 'Path to pygobject overrides directory'
+)
+option('status-notifier',
+    type: 'boolean',
+    value: true,
+    description: 'Build the XApp StatusNotifier service.'
+)
+option('app-lib-only',
+    type: 'boolean',
+    value: false,
+    description: 'Limit build to core library only and without the keyboard layout controller. This is to allow flatpak bundlings.'
+)
+
