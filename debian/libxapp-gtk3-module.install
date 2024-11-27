@@ -1,0 +1,2 @@
+etc/X11/Xsession.d/80xapp-gtk3-module
+usr/lib/*/gtk-3.0/modules

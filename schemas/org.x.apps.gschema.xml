@@ -3,6 +3,7 @@
   <schema id="org.x.apps" path="/org/x/apps/">
     <child name="status-icon" schema="org.x.apps.statusicon"/>
     <child name="favorites" schema="org.x.apps.favorites"/>
+    <child name="portal" schema="org.x.apps.portal"/>
   </schema>
 
   <schema id="org.x.apps.favorites" path="/org/x/apps/favorites/" gettext-domain="xapps">
@@ -33,6 +34,10 @@
         <default>false</default>
         <summary>Print debug messages for the xapp-sn-watcher service</summary>
      </key>
+     <key name="sn-watcher-debug-flags" type="s">
+        <default>"SnWatcher,StatusIcon"</default>
+        <summary>Debug flags for sn-watcher debugging</summary>
+     </key>
      <key name="sn-watcher-replace-tooltip" type="as">
         <default>["qbittorrent"]</default>
         <summary>Use the Title property in place of the Tooltip for programs with these IDs.</summary>
@@ -44,5 +49,34 @@
         </description>
      </key>
   </schema>
+    <schema id="org.x.apps.mate-panel-applet" path="/org/x/apps/mate-panel-applet/" gettext-domain="xapps">
+    <key name="symbolic-icon-offset" type="i">
+      <default>8</default>
+      <summary>Pixels smaller than the panel height to make symbolic icons</summary>
+    </key>
+    <key name="color-icon-offset" type="i">
+      <default>8</default>
+      <summary>Pixels smaller than the panel height to make color icons</summary>
+    </key>
+  </schema>
 
+  <enum id="org.x.apps.portal.ColorScheme">
+    <value nick="default" value="0"/>
+    <value nick="prefer-dark" value="1"/>
+    <value nick="prefer-light" value="2"/>
+  </enum>
+
+  <schema id="org.x.apps.portal" path="/org/x/apps/portal/" gettext-domain="xdg-desktop-portal-xapp">
+    <key name="color-scheme" enum="org.x.apps.portal.ColorScheme">
+      <default>'default'</default>
+      <summary>Color scheme</summary>
+      <description>
+        The preferred color scheme for the user interface. Valid values are “default”, “prefer-dark”, “prefer-light”.
+      </description>
+    </key>
+    <key name="high-contrast" type="b">
+      <default>false</default>
+      <summary>Preferred contrast</summary>
+    </key>
+  </schema>
 </schemalist>

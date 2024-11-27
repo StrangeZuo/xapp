@@ -1,20 +1,23 @@
-project('xapp',
-    'c',
-    version : '2.2.4',
-    default_options : [ 'buildtype=debugoptimized' ],
+project(
+  'xapp',
+  'c',
+version : '2.8.5',
+default_options : ['buildtype=debugoptimized'],
+meson_version : '>=0.56.0'
 )
 
 gnome = import('gnome')
 pkg = import('pkgconfig')
 i18n = import('i18n')
 
-dbus_services_dir = dependency('dbus-1').get_pkgconfig_variable('session_bus_services_dir',
-                                                                define_variable: ['datadir', get_option('datadir')])
-libexec_path = join_paths(get_option('prefix'), get_option('libexecdir'), 'xapps', 'sn-watcher')
+dbus_services_dir = dependency('dbus-1').get_variable(pkgconfig: 'session_bus_services_dir',
+                                                                pkgconfig_define: ['datadir', get_option('datadir')])
+sn_watcher_dir = join_paths(get_option('prefix'), get_option('libdir'), 'xapps')
 
 cdata = configuration_data()
 cdata.set_quoted('GETTEXT_PACKAGE', 'xapp')
-cdata.set_quoted('XAPP_SN_WATCHER_PATH', join_paths([libexec_path, 'xapp-sn-watcher']))
+cdata.set_quoted('XAPP_SN_WATCHER_PATH', join_paths([sn_watcher_dir, 'xapp-sn-watcher']))
+cdata.set('ENABLE_DEBUG', get_option('buildtype') in ['debug', 'debugoptimized'])
 
 add_global_arguments([
     '-Wunused',
@@ -40,7 +43,6 @@ c = configure_file(output : 'config.h',
 )
 
 top_inc = include_directories('.')
-codegen = find_program(join_paths(meson.source_root(), 'meson-scripts', 'g-codegen.py'))
 
 subdir('libxapp')
 subdir('po')

@@ -1,9 +1,8 @@
 usr/bin/ usr/share/xapps-common/
-usr/share/dbus-1/services/org.mate.panel.applet.MateXAppStatusAppletFactory.service
-usr/share/dbus-1/services/org.x.StatusNotifierWatcher.service
-usr/share/glib-2.0/schemas
-usr/share/icons
+usr/share/glib-2.0/schemas/org.x.apps.gschema.xml
+usr/share/icons/hicolor/scalable/actions
+usr/share/icons/hicolor/scalable/apps/xapp-*.svg
+usr/share/icons/hicolor/scalable/categories
+usr/share/icons/hicolor/scalable/emblems
+usr/share/icons/hicolor/scalable/places
 usr/share/locale
-usr/share/mate-panel/applets/org.x.MateXAppStatusApplet.mate-panel-applet
-etc/X11/Xsession.d/80xapp-gtk3-module
-usr/lib/*/xapps/*.py usr/libexec/xapps/

@@ -1,13 +1,17 @@
 glib_min_ver = '>=2.44.0'
 
 gio_dep = dependency('gio-2.0', version: glib_min_ver, required: true)
+gio_unix_dep = dependency('gio-unix-2.0', version: glib_min_ver, required: true)
 glib_dep = dependency('glib-2.0', version: glib_min_ver, required: true)
-gtk3_dep = dependency('gtk+-3.0', version: '>=3.16', required: true)
+gtk3_dep = dependency('gtk+-3.0', version: '>=3.22', required: true)
+gmodule_dep = dependency('gmodule-2.0', version: glib_min_ver, required: true)
 
 libdeps = []
 libdeps += gio_dep
+libdeps += gio_unix_dep
 libdeps += glib_dep
 libdeps += gtk3_dep
+libdeps += gmodule_dep
 libdeps += dependency('gdk-pixbuf-2.0', version: '>=2.22.0', required: true)
 libdeps += dependency('cairo', required: true)
 libdeps += dependency('x11', required: true)
@@ -24,8 +28,10 @@ xapp_debug = [
 ]
 
 xapp_headers = [
+    'xapp-dark-mode-manager.h',
     'xapp-favorites.h',
     'xapp-gtk-window.h',
+    'xapp-gpu-offload-helper.h',
     'xapp-icon-chooser-button.h',
     'xapp-icon-chooser-dialog.h',
     'xapp-monitor-blanker.h',
@@ -34,13 +40,16 @@ xapp_headers = [
     'xapp-status-icon.h',
     'xapp-status-icon-monitor.h',
     'xapp-style-manager.h',
-    'xapp-util.h'
+    'xapp-util.h',
+    'xapp-visibility-group.h'
 ]
 
 xapp_sources = [
+    'xapp-dark-mode-manager.c',
     'xapp-favorites.c',
     'xapp-glade-catalog.c',
     'xapp-gtk-window.c',
+    'xapp-gpu-offload-helper.c',
     'xapp-icon-chooser-button.c',
     'xapp-icon-chooser-dialog.c',
     'xapp-monitor-blanker.c',
@@ -49,8 +58,18 @@ xapp_sources = [
     'xapp-status-icon.c',
     'xapp-status-icon-monitor.c',
     'xapp-style-manager.c',
-    'xapp-util.c'
+    'xapp-util.c',
+    'xapp-visibility-group.c'
 ]
+
+switcheroo_sources = gnome.gdbus_codegen(
+  'xapp-switcheroo-interface',
+  sources: 'net.hadess.SwitcherooControl.xml',
+  interface_prefix: 'net.hadess',
+  namespace: 'XApp'
+)
+
+xapp_sources += switcheroo_sources
 
 if not app_lib_only
     libdeps += dependency('libgnomekbdui', required: true)
@@ -58,45 +77,22 @@ if not app_lib_only
     xapp_sources += 'xapp-kbd-layout-controller.c'
 endif
 
-dbus_headers = []
-
-# FIXME: Ugly workaround that simulates the generation of
-#        two different targets, so headers can be included
-#        explicitly for introspection.
-# 
-# This can be removed once all platforms use meson >=.46
-# and replaced with gnome.gdbus_codegen
-xapp_statusicon_interface_sources = custom_target(
-    'xapp-statusicon-interface',
-    input: 'org.x.StatusIcon.xml',
-    output: ['xapp-statusicon-interface.h', 'xapp-statusicon-interface.c'],
-    command: [
-        codegen,
-        'org.x.StatusIcon',
-        'xapp-statusicon-interface',
-        'StatusIconInterface',
-        meson.current_build_dir(),
-        '@INPUT@', '@OUTPUT@'
-    ]
+xapp_statusicon_interface_sources = gnome.gdbus_codegen(
+  'xapp-statusicon-interface',
+  sources: 'org.x.StatusIcon.xml',
+  interface_prefix: 'org.x.StatusIcon',
+  namespace: 'XApp',
+  annotations: [[ 'org.x.StatusIcon', 'org.gtk.GDBus.C.Name', 'StatusIconInterface' ]],
+  object_manager: true,
+  install_header: true,
+  install_dir: join_paths(get_option('prefix'), get_option('includedir'), 'xapp/libxapp')
 )
 
-dbus_headers += xapp_statusicon_interface_sources[0]
-xapp_sources += xapp_statusicon_interface_sources[1]
+dbus_headers = [ xapp_statusicon_interface_sources[1] ]
+xapp_sources += xapp_statusicon_interface_sources[0]
 
-# You can't actually access the generated header udring the install_header command below,
-# because the command is evaluated prior to the files being generated.  So we need to manually
-# install the dbus header file (custom install scripts really *do* get evaluated after build,
-# during the install phase.)
-codegen = find_program(join_paths(meson.source_root(), 'meson-scripts', 'g-codegen.py'))
-
-meson.add_install_script(join_paths(meson.source_root(), 'meson-scripts', 'install_generated_header.py'),
-  'xapp-statusicon-interface.h'
-)
-
-xapp_enums = gnome.mkenums('xapp-enums',
+xapp_enums = gnome.mkenums_simple('xapp-enums',
     sources : xapp_headers,
-    c_template : 'xapp-enums.c.template',
-    h_template : 'xapp-enums.h.template',
     identifier_prefix : 'XApp',
     symbol_prefix : 'xapp'
 )
@@ -161,6 +157,6 @@ if not app_lib_only
         include_directories: [top_inc],
         dependencies: [gtk3_dep, libxapp_dep],
         install: true,
-        install_dir: join_paths(gtk3_dep.get_pkgconfig_variable('libdir'),'gtk-3.0','modules')
+        install_dir: join_paths(gtk3_dep.get_variable(pkgconfig: 'libdir'),'gtk-3.0','modules')
     )
 endif

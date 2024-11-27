@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 
 #include <glib/gi18n-lib.h>
@@ -35,12 +34,13 @@
 #define FALLBACK_ICON_SIZE 24
 
 // This gets reffed and unreffed according to individual icon presence.
-// For the first icon, it gets created when exporting the icon's inteface.
+// For the first icon, it gets created when exporting the icon's interface.
 // For each additional icon, it gets reffed again. On destruction, the
 // opposite occurs - unrefs, and the final unref calls a weak notify
 // function, which clears this pointer and unown's the process's bus name.
 static GDBusObjectManagerServer *obj_server = NULL;
 static guint name_owner_id = 0;
+XAppStatusIconState process_icon_state = XAPP_STATUS_ICON_STATE_NO_SUPPORT;
 
 enum
 {
@@ -87,8 +87,6 @@ typedef struct
     GtkStatusIcon *gtk_status_icon;
     GtkWidget *primary_menu;
     GtkWidget *secondary_menu;
-
-    XAppStatusIconState state;
 
     gchar *name;
     gchar *icon_name;
@@ -276,7 +274,7 @@ primary_menu_unmapped (GtkWidget  *widget,
 
     DEBUG ("Primary menu unmapped");
 
-    if (icon->priv->state == XAPP_STATUS_ICON_STATE_NATIVE)
+    if (process_icon_state == XAPP_STATUS_ICON_STATE_NATIVE)
     {
         xapp_status_icon_interface_set_primary_menu_is_open (icon->priv->interface_skeleton, FALSE);
     }
@@ -293,7 +291,7 @@ secondary_menu_unmapped (GtkWidget  *widget,
 
     DEBUG ("Secondary menu unmapped");
 
-    if (icon->priv->state == XAPP_STATUS_ICON_STATE_NATIVE)
+    if (process_icon_state == XAPP_STATUS_ICON_STATE_NATIVE)
     {
         xapp_status_icon_interface_set_secondary_menu_is_open (icon->priv->interface_skeleton, FALSE);
     }
@@ -338,7 +336,7 @@ popup_menu (XAppStatusIcon *self,
 
     if (button == GDK_BUTTON_PRIMARY)
     {
-        if (self->priv->state == XAPP_STATUS_ICON_STATE_NATIVE)
+        if (process_icon_state == XAPP_STATUS_ICON_STATE_NATIVE)
         {
             xapp_status_icon_interface_set_primary_menu_is_open (self->priv->interface_skeleton, TRUE);
         }
@@ -351,7 +349,7 @@ popup_menu (XAppStatusIcon *self,
     else
     if (button == GDK_BUTTON_SECONDARY)
     {
-        if (self->priv->state == XAPP_STATUS_ICON_STATE_NATIVE)
+        if (process_icon_state == XAPP_STATUS_ICON_STATE_NATIVE)
         {
             xapp_status_icon_interface_set_secondary_menu_is_open (self->priv->interface_skeleton, TRUE);
         }
@@ -366,6 +364,10 @@ popup_menu (XAppStatusIcon *self,
                               x, y, button, _time, panel_position,
                               &rect_window, &win_rect, &rect_anchor, &menu_anchor);
 
+    g_object_set_data_full (G_OBJECT (menu),
+                            "rect_window", rect_window,
+                            (GDestroyNotify) gdk_window_destroy);
+
     g_object_set (G_OBJECT (menu),
                   "anchor-hints", GDK_ANCHOR_SLIDE_X  | GDK_ANCHOR_SLIDE_Y  |
                                   GDK_ANCHOR_RESIZE_X | GDK_ANCHOR_RESIZE_Y,
@@ -379,7 +381,6 @@ popup_menu (XAppStatusIcon *self,
                             event);
 
     gdk_event_free (event);
-    gdk_window_destroy (rect_window);
 }
 
 static gboolean
@@ -639,7 +640,7 @@ on_gtk_status_icon_button_press (GtkStatusIcon *status_icon,
     return GDK_EVENT_PROPAGATE;
 }
 
-static void
+static gboolean
 on_gtk_status_icon_button_release (GtkStatusIcon *status_icon,
                                    GdkEvent      *event,
                                    gpointer       user_data)
@@ -686,6 +687,62 @@ on_gtk_status_icon_button_release (GtkStatusIcon *status_icon,
                    button,
                    _time,
                    orientation);
+
+    return GDK_EVENT_PROPAGATE;
+}
+
+static gboolean
+on_gtk_status_icon_scroll (GtkStatusIcon *status_icon,
+                           GdkEvent      *event,
+                           gpointer       user_data)
+{
+    XAppStatusIcon *icon = user_data;
+    guint _time;
+
+    _time = event->scroll.time;
+    GdkScrollDirection direction;
+
+
+    if (gdk_event_get_scroll_direction (event, &direction))
+    {
+        XAppScrollDirection x_dir = XAPP_SCROLL_UP;
+        gint delta = 0;
+
+        if (direction != GDK_SCROLL_SMOOTH) {
+            if (direction == GDK_SCROLL_UP)
+            {
+                x_dir = XAPP_SCROLL_UP;
+                delta = -1;
+            }
+            else if (direction == GDK_SCROLL_DOWN)
+            {
+                x_dir = XAPP_SCROLL_DOWN;
+                delta = 1;
+            }
+            else if (direction == GDK_SCROLL_LEFT)
+            {
+                x_dir = XAPP_SCROLL_LEFT;
+                delta = -1;
+            }
+            else if (direction == GDK_SCROLL_RIGHT)
+            {
+                x_dir = XAPP_SCROLL_RIGHT;
+                delta = 1;
+            }
+        }
+
+        DEBUG ("Received Scroll from GtkStatusIcon %s: "
+               "delta: %d , direction: %s , time: %u",
+               gtk_status_icon_get_title (status_icon),
+               delta, direction_to_str (direction), _time);
+
+        g_signal_emit(icon, signals[SCROLL], 0,
+                      delta,
+                      x_dir,
+                      _time);
+    }
+
+    return GDK_EVENT_PROPAGATE;
 }
 
 static void
@@ -725,19 +782,34 @@ on_name_lost (GDBusConnection *connection,
               const gchar     *name,
               gpointer         user_data)
 {
-    XAppStatusIcon *self = XAPP_STATUS_ICON (user_data);
-
     g_warning ("XAppStatusIcon: lost or could not acquire presence on dbus.  Refreshing.");
 
-    self->priv->fail_counter++;
+    GList *instances = g_dbus_object_manager_get_objects (G_DBUS_OBJECT_MANAGER (obj_server));
+    GList *l;
 
-    refresh_icon (self);
+    for (l = instances; l != NULL; l = l->next)
+    {
+        GObject *instance = G_OBJECT (l->data);
+        XAppStatusIcon *icon = XAPP_STATUS_ICON (g_object_get_data (instance, "xapp-status-icon-instance"));
+
+        if (icon == NULL)
+        {
+            g_warning ("on_name_lost: Could not retrieve xapp-status-icon-instance data: %s", name);
+            continue;
+        }
+
+        icon->priv->fail_counter++;
+        refresh_icon (icon);
+    }
+
+    g_list_free_full (instances, g_object_unref);
 }
 
 static void
 sync_skeleton (XAppStatusIcon *self)
 {
     XAppStatusIconPrivate *priv = self->priv;
+    DEBUG ("Syncing icon properties (%s)", priv->name);
 
     priv->fail_counter = 0;
 
@@ -760,15 +832,31 @@ on_name_acquired (GDBusConnection *connection,
                   const gchar     *name,
                   gpointer         user_data)
 {
-    XAppStatusIcon *self = XAPP_STATUS_ICON (user_data);
+    process_icon_state = XAPP_STATUS_ICON_STATE_NATIVE;
 
-    self->priv->state = XAPP_STATUS_ICON_STATE_NATIVE;
+    GList *instances = g_dbus_object_manager_get_objects (G_DBUS_OBJECT_MANAGER (obj_server));
+    GList *l;
 
-    sync_skeleton (self);
+    for (l = instances; l != NULL; l = l->next)
+    {
+        GObject *instance = G_OBJECT (l->data);
+        XAppStatusIcon *icon = XAPP_STATUS_ICON (g_object_get_data (instance, "xapp-status-icon-instance"));
 
-    DEBUG ("Name acquired on dbus, syncing icon properties. State is now: %s",
-             state_to_str (self->priv->state));
-    g_signal_emit (self, signals[STATE_CHANGED], 0, self->priv->state);
+        if (icon == NULL)
+        {
+            g_warning ("on_name_aquired: Could not retrieve xapp-status-icon-instance data: %s", name);
+            continue;
+        }
+
+        sync_skeleton (icon);
+
+        DEBUG ("Name acquired on dbus, state is now: %s",
+               state_to_str (process_icon_state));
+
+        g_signal_emit (icon, signals[STATE_CHANGED], 0, process_icon_state);
+    }
+
+    g_list_free_full (instances, g_object_unref);
 }
 
 typedef struct
@@ -834,6 +922,8 @@ export_icon_interface (XAppStatusIcon *self)
     xapp_object_skeleton_set_status_icon_interface (self->priv->object_skeleton,
                                                     self->priv->interface_skeleton);
 
+    g_object_set_data (G_OBJECT (self->priv->object_skeleton), "xapp-status-icon-instance", self);
+
     g_dbus_object_manager_server_export_uniquely (obj_server,
                                                   G_DBUS_OBJECT_SKELETON (self->priv->object_skeleton));
 
@@ -886,7 +976,7 @@ connect_with_status_applet (XAppStatusIcon *self)
                                                       G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE,
                                                       on_name_acquired,
                                                       on_name_lost,
-                                                      self,
+                                                      NULL,
                                                       NULL);
     }
 
@@ -932,20 +1022,19 @@ on_gtk_status_icon_embedded_changed (GtkStatusIcon *icon,
     g_return_if_fail (GTK_IS_STATUS_ICON (icon));
 
     XAppStatusIcon *self = XAPP_STATUS_ICON (user_data);
-    XAppStatusIconPrivate *priv = self->priv;
 
     if (gtk_status_icon_is_embedded (icon))
     {
-        priv->state = XAPP_STATUS_ICON_STATE_FALLBACK;
+        process_icon_state = XAPP_STATUS_ICON_STATE_FALLBACK;
     }
     else
     {
-        priv->state = XAPP_STATUS_ICON_STATE_NO_SUPPORT;
+        process_icon_state = XAPP_STATUS_ICON_STATE_NO_SUPPORT;
     }
 
     DEBUG ("Fallback icon embedded_changed. State is now %s",
-             state_to_str (priv->state));
-    g_signal_emit (self, signals[STATE_CHANGED], 0, priv->state);
+             state_to_str (process_icon_state));
+    g_signal_emit (self, signals[STATE_CHANGED], 0, process_icon_state);
 }
 
 static void
@@ -969,6 +1058,10 @@ use_gtk_status_icon (XAppStatusIcon *self)
     g_signal_connect (priv->gtk_status_icon,
                       "button-release-event",
                       G_CALLBACK (on_gtk_status_icon_button_release),
+                      self);
+    g_signal_connect (priv->gtk_status_icon,
+                      "scroll-event",
+                      G_CALLBACK (on_gtk_status_icon_scroll),
                       self);
     g_signal_connect (priv->gtk_status_icon,
                       "notify::embedded",
@@ -1216,7 +1309,6 @@ xapp_status_icon_init (XAppStatusIcon *self)
 
     self->priv->name = g_strdup (g_get_prgname());
 
-    self->priv->state = XAPP_STATUS_ICON_STATE_NO_SUPPORT;
     self->priv->icon_size = FALLBACK_ICON_SIZE;
     self->priv->icon_name = g_strdup (" ");
 
@@ -1240,7 +1332,9 @@ remove_icon_path_from_bus (XAppStatusIcon *self)
 
         DEBUG ("Removing interface at path '%s'", path);
 
+        g_object_set_data (G_OBJECT (self->priv->object_skeleton), "xapp-status-icon-instance", NULL);
         g_dbus_object_manager_server_unexport (obj_server, path);
+
         self->priv->interface_skeleton = NULL;
         self->priv->object_skeleton = NULL;
 
@@ -1745,7 +1839,7 @@ xapp_status_icon_popup_menu (XAppStatusIcon *icon,
 {
     g_return_if_fail (XAPP_IS_STATUS_ICON (icon));
     g_return_if_fail (GTK_IS_MENU (menu) || menu == NULL);
-    g_return_if_fail (icon->priv->state != XAPP_STATUS_ICON_STATE_NO_SUPPORT);
+    g_return_if_fail (process_icon_state != XAPP_STATUS_ICON_STATE_NO_SUPPORT);
 
     popup_menu (icon,
                 menu,
@@ -1778,7 +1872,7 @@ xapp_status_icon_set_primary_menu (XAppStatusIcon *icon,
 
     g_clear_object (&icon->priv->primary_menu);
 
-    DEBUG ("set_primary_menu: %p", menu);
+    DEBUG ("%s: %p", icon->priv->name, menu);
 
     if (menu)
     {
@@ -1830,7 +1924,7 @@ xapp_status_icon_set_secondary_menu (XAppStatusIcon *icon,
 
     g_clear_object (&icon->priv->secondary_menu);
 
-    DEBUG ("set_secondary_menu: %p", menu);
+    DEBUG ("%s: %p", icon->priv->name, menu);
 
     if (menu)
     {
@@ -1910,9 +2004,9 @@ xapp_status_icon_get_state (XAppStatusIcon *icon)
 {
     g_return_val_if_fail (XAPP_IS_STATUS_ICON (icon), XAPP_STATUS_ICON_STATE_NO_SUPPORT);
 
-    DEBUG ("get_state: %s", state_to_str (icon->priv->state));
+    DEBUG ("get_state: %s", state_to_str (process_icon_state));
 
-    return icon->priv->state;
+    return process_icon_state;
 }
 
 /**

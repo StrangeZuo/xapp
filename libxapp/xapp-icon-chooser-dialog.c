@@ -1645,12 +1645,15 @@ search_path (XAppIconChooserDialog *dialog,
         {
             priv->current_category = NULL;
 
-            gchar *content_type;
-            gboolean uncertain;
+            const gchar *content_type;
 
-            content_type = g_content_type_guess (child_name, NULL, 0, &uncertain);
+            content_type = g_file_info_get_attribute_string (child_info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE);
+            if (content_type == NULL)
+            {
+                content_type = g_file_info_get_attribute_string (child_info, G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE);
+            }
 
-            if (content_type && g_str_has_prefix (content_type, "image") && !uncertain)
+            if (content_type && g_content_type_is_a (content_type, "image/*"))
             {
                 GFileInputStream         *stream;
 
@@ -1692,8 +1695,6 @@ search_path (XAppIconChooserDialog *dialog,
                     }
                 }
             }
-
-            g_free (content_type);
         }
 
         g_free (child_path);
@@ -1752,8 +1753,9 @@ search_icon_name (XAppIconChooserDialog *dialog,
         if (priv->search_iter)
         {
             priv->current_category = NULL;
+            gchar *casefolded = g_utf8_casefold (priv->search_iter->data, -1);
 
-            if (g_strrstr (priv->search_iter->data, name_string))
+            if (g_strrstr (casefolded, name_string))
             {
                 NamedIconInfoLoadCallbackInfo *callback_info;
                 cairo_surface_t *surface;
@@ -1786,6 +1788,8 @@ search_icon_name (XAppIconChooserDialog *dialog,
 
                 chunk_count++;
             }
+
+            g_free (casefolded);
         }
         else
         {
@@ -1836,8 +1840,7 @@ on_search_text_changed (GtkSearchEntry        *entry,
     }
     else
     {
-        g_free (priv->current_text);
-        priv->current_text = g_strdup (search_text);
+        g_clear_pointer (&priv->current_text, g_free);
 
         gtk_widget_show (priv->loading_bar);
 
@@ -1847,12 +1850,14 @@ on_search_text_changed (GtkSearchEntry        *entry,
         {
             if (priv->allow_paths)
             {
-                search_path (dialog, search_text, priv->search_icon_store);
+                priv->current_text = g_strdup (search_text);
+                search_path (dialog, priv->current_text, priv->search_icon_store);
             }
         }
         else
         {
-            search_icon_name (dialog, search_text, priv->search_icon_store);
+            priv->current_text = g_utf8_casefold (search_text, -1);
+            search_icon_name (dialog, priv->current_text, priv->search_icon_store);
         }
     }
 }

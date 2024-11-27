@@ -1,3 +1,178 @@
+xapp (2.8.5-1) unstable; urgency=medium
+
+  * d/gbp.conf: switch to DEP-14
+  * Add d/README.source with a wiki link with details about packaging
+  * New upstream version 2.8.5
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 19 Aug 2024 20:18:41 +0200
+
+xapp (2.8.4-1) unstable; urgency=medium
+
+  * New upstream version 2.8.4
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 22 Jun 2024 10:07:37 +0200
+
+xapp (2.8.3-1) unstable; urgency=medium
+
+  * New upstream version 2.8.3
+  * Update standards version to 4.7.0, no changes needed
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 09 Jun 2024 20:16:37 +0200
+
+xapp (2.8.2-1) unstable; urgency=medium
+
+  * New upstream version 2.8.2
+  * d/control:
+    - add full gir packages dependencies include the ones that are
+      virtual for now
+    - python3:any instead python3 in build-deps
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 07 Jan 2024 19:57:23 +0100
+
+xapp (2.8.0-1) unstable; urgency=medium
+
+  * New upstream version 2.8.0
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 25 Nov 2023 14:46:31 +0100
+
+xapp (2.6.1-1) unstable; urgency=medium
+
+  [ Joshua Peisach ]
+  * New upstream version 2.6.1
+
+  [ Fabio Fantoni ]
+  * d/rules: remove workaround for move and rename Xsession file
+    now fixed upstream
+  * Update symbols
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 26 Jun 2023 10:45:52 +0200
+
+xapp (2.4.3-1) unstable; urgency=medium
+
+  * New upstream bugfix version 2.4.3
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Fri, 26 May 2023 11:25:35 +0200
+
+xapp (2.4.2-3) unstable; urgency=medium
+
+  * Remove xapp metapackage as not needed anymore
+  * Update standards version to 4.6.2, no changes needed
+  * d/control: replace libgdk-pixbuf2.0-dev with libgdk-pixbuf-2.0-dev
+    in build-deps
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 04 Feb 2023 15:58:40 +0100
+
+xapp (2.4.2-2) unstable; urgency=medium
+
+  * Release to unstable
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 25 Dec 2022 14:13:46 +0100
+
+xapp (2.4.2-1) experimental; urgency=medium
+
+  * New upstream version 2.4.2
+  * Merge some changes from Thomas Uhle upstream PR for some improvements:
+    - Add dependencies on libcairo2-dev and libglib2.0-dev in libxapp-dev
+      because are exposed to the user through header files and xapp.pc
+    - Mark xapps-doc with Multi-Arch: foreign
+    - Add missed build-deps libdbus-1-dev and libcairo2-dev
+    - Remove explicit dependency on libgnomekbd8 from libxapp1 because
+      it is already automatically added by dh_shlibdeps
+    - Split xapp to new libxapp-gtk3-module and xapp-sn-watcher packages
+    - Move xinitrc script xapp-gtk3-module to package libxapp-gtk3-module
+    - Add recommends on libxapp-gtk3-module and xapp-sn-watcher to libxapp1
+    - Introduce new package mate-xapp-status-applet to properly move the
+      mate related part
+  * Keep xapp as transitional package
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 03 Dec 2022 13:48:00 +0100
+
+xapp (2.4.1-1) unstable; urgency=medium
+
+  [ Joshua Peisach ]
+  * New upstream version 2.4.1
+
+  [ Fabio Fantoni ]
+  * update symbols
+
+  [ Debian Janitor ]
+  * Remove constraints unnecessary since buster (oldstable)
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 20 Nov 2022 17:59:17 +0100
+
+xapp (2.2.15-2) unstable; urgency=medium
+
+  * d/control: remove gist from xapps-common recommends and add
+    netcat. Thanks to Thomas Uhle (Closes: #1023151)
+  * debian/patches: add a patch to fix the pastebin path in
+    upload-system-info. Thanks to Thomas Uhle
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Fri, 04 Nov 2022 16:37:43 +0100
+
+xapp (2.2.15-1) unstable; urgency=medium
+
+  [ Joshua Peisach ]
+  * New upstream version 2.2.15
+
+  [ Fabio Fantoni ]
+  * Update symbols
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 05 Sep 2022 20:51:30 +0200
+
+xapp (2.2.14-1) unstable; urgency=medium
+
+  * New upstream version 2.2.14
+
+ -- Joshua Peisach <itzswirlz2020@outlook.com>  Tue, 16 Aug 2022 16:21:24 -0400
+
+xapp (2.2.13-1) unstable; urgency=medium
+
+  * New upstream version 2.2.13
+  * Update d/copyright
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 16 Jul 2022 12:29:01 +0200
+
+xapp (2.2.12-1) unstable; urgency=medium
+
+  * New upstream version 2.2.12
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 27 Jun 2022 21:33:38 +0200
+
+xapp (2.2.10-1) unstable; urgency=medium
+
+  * New upstream version 2.2.10
+  * Simplify d/watch
+  * Update and improve lintian override
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Wed, 15 Jun 2022 09:22:11 +0200
+
+xapp (2.2.8-1) unstable; urgency=medium
+
+  [ Fabio Fantoni ]
+  * New upstream version 2.2.8
+
+  [ Christoph Martin ]
+  * add myself to uploaders
+
+ -- Christoph Martin <martin@uni-mainz.de>  Thu, 27 Jan 2022 13:42:16 +0100
+
+xapp (2.2.6-1) experimental; urgency=medium
+
+  [ Joshua Peisach ]
+  * Add dh-sequence-gir to build deps
+  * Update debian/watch
+
+  [ Fabio Fantoni ]
+  * New upstream version 2.2.6
+  * Use dh-sequence-python3
+  * Use /usr/libxec as default in compat >=12 and FHS 3.0
+  * Create new xapp package and move some files from libxapp1 to
+    respect shared libraries policy (Closes: #1000824)
+  * d/copyright: add Upstream-Contact and missed entries
+  * add myself to uploaders field, missed some years ago
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 23 Dec 2021 10:56:47 +0100
+
 xapp (2.2.4-1) unstable; urgency=medium
 
   * New upstream version 2.2.4

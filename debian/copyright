@@ -1,17 +1,25 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: xapps
+Upstream-Contact: Linux Mint Project <root@linuxmint.com>
 Source: https://github.com/linuxmint/xapps
 
 Files: *
-Copyright: 2016-2019, Linux Mint
+Copyright: 2016-2022, Linux Mint
 License: LGPL-3
 
 Files: scripts/xfce4-set-wallpaper
 Copyright: Weitian Leung <weitianleung@gmail.com>
 License: GPL-3
 
+Files: libxapp/xapp-debug.c
+       libxapp/xapp-debug.h
+Copyright: 2007, Collabora Ltd
+           2007, Nokia Corporation
+           2010, Red Hat, Inc
+License: LGPL-2.1+
+
 Files: debian/*
-Copyright: 2016-2019, Debian Cinnamon Team <debian-cinnamon@lists.debian.org>
+Copyright: 2016-2022, Debian Cinnamon Team <debian-cinnamon@lists.debian.org>
 License: GPL-2+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -52,3 +60,10 @@ License: GPL-3
  The complete text of the GNU General Public License version 3 can be found in
  `/usr/share/common-licenses/GPL-3'.
 
+License: LGPL-2.1+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public License version
+ 2.1 or (at your option) any later version.
+ .
+ The complete text of the GNU Lesser General Public License version 2.1 can be
+ found in `/usr/share/common-licenses/LGPL-2.1'.

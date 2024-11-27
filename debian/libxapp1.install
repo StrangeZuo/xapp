@@ -1,5 +1,2 @@
-etc/xdg/autostart/xapp-sn-watcher.desktop
 usr/lib/*/libxapp.so.1
 usr/lib/*/libxapp.so.2.*
-usr/lib/*/xapps/sn-watcher/*
-usr/lib/*/gtk-3.0/modules/libxapp-gtk3-module.so

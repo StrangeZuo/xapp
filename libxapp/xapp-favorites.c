@@ -470,7 +470,7 @@ deduplicate_display_names (XAppFavorites *favorites,
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         GList *same_names_list, *uri_ptr;
-        const gchar *common_display_name;
+        gchar *common_display_name = NULL;
 
         if (((GList *) value)->next == NULL)
         {
@@ -480,7 +480,7 @@ deduplicate_display_names (XAppFavorites *favorites,
         }
         // Now we know we have a list of uris that would have identical display names
         // Add a part of the uri after each to distinguish them.
-        common_display_name = (const gchar *) key;
+        common_display_name = g_uri_unescape_string ((const gchar *) key, NULL);
         same_names_list = (GList *) value;
 
         for (uri_ptr = same_names_list; uri_ptr != NULL; uri_ptr = uri_ptr->next)
@@ -578,12 +578,65 @@ deduplicate_display_names (XAppFavorites *favorites,
             info->display_name = g_string_free (new_display_string, FALSE);
         }
 
+        g_free (common_display_name);
         g_list_free_full (same_names_list, g_free);
     }
 
     // We freed the individual lists just above, only the keys will need
     // freed here.
     g_hash_table_destroy (lists_of_keys_by_basename);
+}
+
+static void
+on_display_name_received (GObject      *source,
+                          GAsyncResult *res,
+                          gpointer      user_data)
+{
+    GFile *file;
+    GFileInfo *file_info;
+    GError *error;
+    gchar *display_name;
+    g_autofree gchar *uri = NULL;
+
+    file = G_FILE (source);
+    error = NULL;
+
+    uri = g_file_get_uri (file);
+    file_info = g_file_query_info_finish (file, res, &error);
+
+    if (error)
+    {
+        DEBUG ("XAppFavorites: problem trying to get real display name for uri '%s': %s",
+               uri, error->message);
+        g_error_free (error);
+        return;
+    }
+
+    g_return_if_fail (XAPP_IS_FAVORITES (user_data));
+
+    XAppFavorites *favorites = XAPP_FAVORITES (user_data);
+    XAppFavoritesPrivate *priv = xapp_favorites_get_instance_private (favorites);
+
+    display_name = NULL;
+
+    if (file_info)
+    {
+        XAppFavoriteInfo *info = g_hash_table_lookup (priv->infos,  uri);
+        const gchar *real_display_name = g_file_info_get_display_name (file_info);
+
+        if (info != NULL && g_strcmp0 (info->display_name, real_display_name) != 0)
+        {
+            gchar *old_name = info->display_name;
+            info->display_name = g_strdup (real_display_name);
+            g_free (old_name);
+
+            deduplicate_display_names (favorites, priv->infos);
+            queue_changed (favorites);
+        }
+    }
+
+    g_free (display_name);
+    g_clear_object (&file_info);
 }
 
 static void
@@ -617,6 +670,16 @@ finish_add_favorite (XAppFavorites *favorites,
     DEBUG ("XAppFavorites: added favorite: %s", uri);
 
     deduplicate_display_names (favorites, priv->infos);
+
+    GFile *gfile = g_file_new_for_uri (uri);
+    g_file_query_info_async (gfile,
+                             G_FILE_ATTRIBUTE_STANDARD_DISPLAY_NAME,
+                             G_FILE_QUERY_INFO_NONE,
+                             G_PRIORITY_LOW,
+                             NULL,
+                             on_display_name_received,
+                             favorites);
+    g_object_unref (gfile);
 
     if (from_saved)
     {
@@ -654,7 +717,7 @@ on_content_type_info_received (GObject      *source,
 
     if (file_info)
     {
-        cached_mimetype = g_strdup (g_file_info_get_content_type (file_info));
+        cached_mimetype = g_strdup (g_file_info_get_attribute_string (file_info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE));
 
         if (cached_mimetype == NULL)
         {
@@ -824,7 +887,7 @@ match_mimetypes (gpointer key,
 /**
  * xapp_favorites_get_favorites:
  * @favorites: The #XAppFavorites
- * @mimetypes: (nullable): The mimetypes to filter by for results
+ * @mimetypes: (nullable) (array zero-terminated=1): The mimetypes to filter by for results
  *
  * Gets a list of all favorites.  If mimetype is not %NULL, the list will
  * contain only favorites with that mimetype.
@@ -835,8 +898,8 @@ match_mimetypes (gpointer key,
  * Since: 2.0
  */
 GList *
-xapp_favorites_get_favorites (XAppFavorites  *favorites,
-                              const gchar   **mimetypes)
+xapp_favorites_get_favorites (XAppFavorites       *favorites,
+                              const gchar * const *mimetypes)
 {
     g_return_val_if_fail (XAPP_IS_FAVORITES (favorites), NULL);
     XAppFavoritesPrivate *priv = xapp_favorites_get_instance_private (favorites);
@@ -844,7 +907,7 @@ xapp_favorites_get_favorites (XAppFavorites  *favorites,
     MatchData data;
 
     data.items = NULL;
-    data.mimetypes = mimetypes;
+    data.mimetypes = (const gchar **) mimetypes;
     g_hash_table_foreach (priv->infos,
                           (GHFunc) match_mimetypes,
                           &data);

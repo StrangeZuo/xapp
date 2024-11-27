@@ -30,6 +30,8 @@
 
 G_BEGIN_DECLS
 
+#ifdef ENABLE_DEBUG
+
 typedef enum
 {
   XAPP_DEBUG_WINDOW = 1 << 1,
@@ -37,11 +39,15 @@ typedef enum
   XAPP_DEBUG_FAVORITE_VFS = 1 << 3,
   XAPP_DEBUG_STATUS_ICON = 1 << 4,
   XAPP_DEBUG_SN_WATCHER = 1 << 5,
-  XAPP_DEBUG_MODULE = 1 << 6
+  XAPP_DEBUG_MODULE = 1 << 6,
+  XAPP_DEBUG_VISIBILITY_GROUP = 1 << 7,
+  XAPP_DEBUG_GPU_OFFLOAD = 1 << 8,
+  XAPP_DEBUG_DARK_MODE_MANAGER = 1 << 9
 } DebugFlags;
 
 void xapp_debug_set_flags (DebugFlags flags);
 gboolean xapp_debug_flag_is_set (DebugFlags flag);
+const gchar *debug_flag_to_string (DebugFlags flag);
 
 void xapp_debug_valist (DebugFlags flag,
                             const gchar *format, va_list args);
@@ -52,7 +58,7 @@ void xapp_debug (DebugFlags flag, const gchar *format, ...)
 #ifdef DEBUG_FLAG
 
 #define DEBUG(format, ...) \
-  xapp_debug (DEBUG_FLAG, "%s: %s: " format, G_STRFUNC, G_STRLOC, \
+  xapp_debug (DEBUG_FLAG, "(%s) %s: %s: " format, debug_flag_to_string (DEBUG_FLAG), G_STRFUNC, G_STRLOC, \
                   ##__VA_ARGS__)
 
 #define DEBUGGING xapp_debug_flag_is_set(DEBUG_FLAG)
@@ -69,6 +75,7 @@ void xapp_debug (DebugFlags flag, const gchar *format, ...)
 #define DEBUGGING 0
 
 #endif /* DEBUG_FLAG */
+#endif /* ENABLE_DEBUG */
 
 G_END_DECLS
 

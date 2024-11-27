@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 
 #include <glib/gi18n-lib.h>
@@ -460,7 +459,7 @@ xapp_status_icon_monitor_finalize (GObject *object)
 {
     DEBUG ("XAppStatusIconMonitor finalize (%p)", object);
 
-    G_OBJECT_CLASS (xapp_status_icon_monitor_parent_class)->dispose (object);
+    G_OBJECT_CLASS (xapp_status_icon_monitor_parent_class)->finalize (object);
 }
 
 static void

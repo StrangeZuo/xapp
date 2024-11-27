@@ -537,6 +537,17 @@ unref_proxy (gpointer data)
 }
 
 static void
+clean_tempfiles (XAppSnWatcher *watcher)
+{
+    gchar *cmd = g_strdup_printf ("rm -f %s/xapp-tmp-*.png", xapp_get_tmp_dir ());
+
+    // -Wunused-result
+    if (system(cmd)) ;
+
+    g_free (cmd);
+}
+
+static void
 watcher_startup (GApplication *application)
 {
     XAppSnWatcher *watcher = (XAppSnWatcher*) application;
@@ -624,6 +635,8 @@ watcher_shutdown (GApplication *application)
     g_clear_object (&watcher->connection);
     g_clear_object (&watcher->cancellable);
 
+    clean_tempfiles (watcher);
+
     G_APPLICATION_CLASS (xapp_sn_watcher_parent_class)->shutdown (application);
 }
 
@@ -669,6 +682,15 @@ watcher_new (const gchar *current_desktop)
   return watcher;
 }
 
+static void
+muted_log_handler (const char     *log_domain,
+                   GLogLevelFlags  log_level,
+                   const char     *message,
+                   gpointer        data)
+
+{
+}
+
 int
 main (int argc, char **argv)
 {
@@ -689,18 +711,32 @@ main (int argc, char **argv)
         sleep (2);
     }
 
-    current_desktop = g_getenv ("XDG_CURRENT_DESKTOP");
     xapp_settings = g_settings_new (STATUS_ICON_SCHEMA);
 
     if (g_settings_get_boolean (xapp_settings, DEBUG_KEY))
     {
         g_setenv ("G_MESSAGES_DEBUG", "all", TRUE);
+
+        gchar *flags = g_settings_get_string (xapp_settings, DEBUG_FLAGS_KEY);
+        g_setenv ("XAPP_DEBUG", flags, TRUE);
+        g_free (flags);
+
     }
 
     whitelist = g_settings_get_strv (xapp_settings,
                                      VALID_XDG_DESKTOPS_KEY);
 
-    should_start = g_strv_contains ((const gchar * const *) whitelist, current_desktop);
+    current_desktop = g_getenv ("XDG_CURRENT_DESKTOP");
+
+    if (current_desktop != NULL)
+    {
+        should_start = g_strv_contains ((const gchar * const *) whitelist, current_desktop);
+    }
+    else
+    {
+        g_warning ("XDG_CURRENT_DESKTOP not set, unable to check against enabled desktop list. Starting anyway...");
+        should_start = TRUE;
+    }
 
     g_strfreev (whitelist);
     g_clear_object (&xapp_settings);
@@ -711,6 +747,19 @@ main (int argc, char **argv)
                  "If you want to change this, add your desktop's name to the dconf org.x.apps.statusicon "
                  "'status-notifier-enabled-desktops' setting key.", current_desktop);
         exit(0);
+    }
+
+    // libdbusmenu and gtk throw a lot of menu-related warnings for problems we already handle.
+    // They can be noisy in .xsession-errors, however. Redirect them to debug output only.
+    DEBUG (""); // Initialize the DEBUGGING flag
+    if (!DEBUGGING)
+    {
+        g_log_set_handler ("LIBDBUSMENU-GTK", G_LOG_LEVEL_WARNING,
+                           muted_log_handler, NULL);
+        g_log_set_handler ("LIBDBUSMENU-GLIB", G_LOG_LEVEL_WARNING,
+                           muted_log_handler, NULL);
+        g_log_set_handler ("Gtk", G_LOG_LEVEL_CRITICAL,
+                           muted_log_handler, NULL);
     }
 
     watcher = watcher_new (current_desktop);

@@ -12,6 +12,7 @@
 #include <gtk/gtk.h>
 #include <cairo-gobject.h>
 #include <libxapp/xapp-status-icon.h>
+#include <libxapp/xapp-util.h>
 #include <libdbusmenu-gtk/menu.h>
 
 #include "sn-item-interface.h"
@@ -54,6 +55,7 @@ typedef struct
     gboolean             update_tooltip;
     gboolean             update_menu;
     gboolean             update_icon;
+    gboolean             update_id;
 } SnItemPropertiesResult;
 
 struct _SnItem
@@ -69,8 +71,8 @@ struct _SnItem
     GCancellable *cancellable;
 
     Status status;
-    gchar *last_png_path;
-    gchar *png_path;
+
+    gchar *png_paths[2];
 
     gint current_icon_id;
 
@@ -168,25 +170,10 @@ sn_item_dispose (GObject *object)
     SnItem *item = SN_ITEM (object);
     DEBUG ("SnItem dispose (%p)", object);
 
-    if (item->png_path != NULL)
-    {
-        g_unlink (item->png_path);
-        g_free (item->png_path);
-        item->png_path = NULL;
-    }
-
-    if (item->last_png_path != NULL)
-    {
-        g_unlink (item->last_png_path);
-        g_free (item->last_png_path);
-        item->last_png_path = NULL;
-    }
-
     g_clear_handle_id (&item->update_properties_timeout, g_source_remove);
 
     g_clear_pointer (&item->sortable_name, g_free);
     g_clear_object (&item->status_icon);
-    g_clear_object (&item->menu);
     g_clear_object (&item->prop_proxy);
     g_clear_object (&item->sn_item_proxy);
     g_clear_object (&item->cancellable);
@@ -200,6 +187,12 @@ static void
 sn_item_finalize (GObject *object)
 {
     DEBUG ("SnItem finalize (%p)", object);
+    SnItem *item = SN_ITEM (object);
+
+    g_unlink (item->png_paths[0]);
+    g_free (item->png_paths[0]);
+    g_unlink (item->png_paths[1]);
+    g_free (item->png_paths[1]);
 
     G_OBJECT_CLASS (sn_item_parent_class)->finalize (object);
 }
@@ -239,6 +232,19 @@ get_icon_id (SnItem *item)
     item->current_icon_id = (!item->current_icon_id);
 
     return item->current_icon_id;
+}
+
+static gchar *
+get_temp_file (SnItem *item)
+{
+    gchar *filename;
+    gchar *full_path;
+
+    filename = g_strdup_printf ("xapp-tmp-%p-%d.png", item, get_icon_id (item));
+    full_path = g_build_filename (xapp_get_tmp_dir (), filename, NULL);
+    g_free (filename);
+
+    return full_path;
 }
 
 static gint
@@ -377,7 +383,6 @@ static void
 set_icon_from_pixmap (SnItem *item, SnItemPropertiesResult *new_props)
 {
     cairo_surface_t *surface;
-    gchar *filename, *save_filename;
 
     DEBUG ("Trying to use icon pixmap for %s",
              item->sortable_name);
@@ -407,24 +412,19 @@ set_icon_from_pixmap (SnItem *item, SnItemPropertiesResult *new_props)
 
     if (surface != NULL)
     {
-        item->last_png_path = item->png_path;
-
-        filename = g_strdup_printf ("xapp-tmp-%p-%d.png", item, get_icon_id (item));
-        save_filename = g_build_path ("/", g_get_tmp_dir (), filename, NULL);
-        g_free (filename);
+        const gchar *current_png_path = item->png_paths[get_icon_id (item)];
 
         cairo_status_t status = CAIRO_STATUS_SUCCESS;
-        status = cairo_surface_write_to_png (surface, save_filename);
+        status = cairo_surface_write_to_png (surface, current_png_path);
 
-        DEBUG ("Saving tmp image file for '%s' to '%s'", item->sortable_name, save_filename);
+        DEBUG ("Saving tmp image file for '%s' to '%s'", item->sortable_name, current_png_path);
 
         if (status != CAIRO_STATUS_SUCCESS)
         {
             g_warning ("Failed to save png of status icon");
         }
 
-        xapp_status_icon_set_icon_name (item->status_icon, save_filename);
-        g_free (save_filename);
+        xapp_status_icon_set_icon_name (item->status_icon, current_png_path);
         return;
     }
 
@@ -570,21 +570,27 @@ update_icon (SnItem *item, SnItemPropertiesResult *new_props)
 static void
 update_menu (SnItem *item, SnItemPropertiesResult *new_props)
 {
-    g_clear_object (&item->menu);
+    DEBUG ("Possible new menu for '%s' - current path: '%s', new: '%s'",
+           item->sortable_name, item->current_props->menu_path, new_props->menu_path);
 
     xapp_status_icon_set_primary_menu (item->status_icon, NULL);
     xapp_status_icon_set_secondary_menu (item->status_icon, NULL);
+    g_clear_object (&item->menu);
 
     if (new_props->menu_path == NULL)
     {
         return;
     }
 
+    if (g_strcmp0 (new_props->menu_path, "/NO_DBUSMENU") == 0)
+    {
+        DEBUG ("No menu set for '%s' (/NO_DBUSMENU)", item->sortable_name);
+        return;
+    }
+
     item->menu = GTK_WIDGET (dbusmenu_gtkmenu_new ((gchar *) g_dbus_proxy_get_name (item->sn_item_proxy),
                                                    new_props->menu_path));
     g_object_ref_sink (item->menu);
-
-    DEBUG ("New menu for '%s'", item->sortable_name);
 
     if (item->is_ai && !item->should_activate)
     {
@@ -732,12 +738,12 @@ get_all_properties_callback (GObject      *source_object,
     GVariantIter *iter = NULL;
     const gchar  *name;
     GVariant     *value;
-
     properties = g_dbus_proxy_call_finish (G_DBUS_PROXY (source_object), res, &error);
 
     if (error != NULL)
     {
-        if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+        if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED) &&
+            !g_error_matches (error, G_DBUS_ERROR, G_DBUS_ERROR_UNKNOWN_METHOD))
         {
             g_critical ("Could not get properties for %s: %s\n",
                         g_dbus_proxy_get_name (item->sn_item_proxy),
@@ -890,6 +896,14 @@ get_all_properties_callback (GObject      *source_object,
                 new_props->update_icon = TRUE;
             }
         }
+        if (g_strcmp0 (name, "Id") == 0)
+        {
+            new_props->id = null_or_string_from_variant (value);
+            if (g_strcmp0 (new_props->id, item->current_props->id) != 0)
+            {
+                new_props->update_id = TRUE;
+            }
+        }
     }
 
     g_variant_iter_free (iter);
@@ -913,6 +927,10 @@ get_all_properties_callback (GObject      *source_object,
     if (new_props->update_icon || new_props->update_status)
     {
         update_icon (item, new_props);
+    }
+    if ((new_props->update_id || new_props->update_status) && !new_props->update_tooltip)
+    {
+        assign_sortable_name (item, new_props->id);
     }
 
     props_free (item->current_props);
@@ -970,7 +988,10 @@ sn_signal_received (GDBusProxy  *sn_item_proxy,
         return;
     }
 
+    DEBUG ("Signal received from StatusNotifierItem: %s", signal_name);
+
     if (g_strcmp0 (signal_name, "NewIcon") == 0 ||
+        g_strcmp0 (signal_name, "Id") == 0 ||
         g_strcmp0 (signal_name, "NewAttentionIcon") == 0 ||
         g_strcmp0 (signal_name, "NewOverlayIcon") == 0 ||
         g_strcmp0 (signal_name, "NewToolTip") == 0 ||
@@ -1078,16 +1099,14 @@ xapp_icon_state_changed (XAppStatusIcon      *status_icon,
 
 static void
 assign_sortable_name (SnItem         *item,
-                      const gchar    *title)
+                      const gchar    *id)
 {
     gchar *init_name, *normalized;
     gchar *sortable_name, *old_sortable_name;
 
-    init_name = sn_item_interface_dup_id (SN_ITEM_INTERFACE (item->sn_item_proxy));
-
-    if (init_name == NULL && title != NULL)
+    if (id != NULL)
     {
-        init_name = g_strdup (title);
+        init_name = g_strdup (id);
     }
     else
     {
@@ -1191,6 +1210,9 @@ sn_item_new (GDBusProxy *sn_item_proxy,
     item->sn_item_proxy = sn_item_proxy;
     item->is_ai = is_ai;
     item->cancellable = g_cancellable_new ();
+
+    item->png_paths[0] = get_temp_file (item);
+    item->png_paths[1] = get_temp_file (item);
 
     initialize_item (item);
     return item;

@@ -1,0 +1,23 @@
+From: Fabio Fantoni <fantonifabio@tiscali.it>
+Date: Tue, 1 Nov 2022 10:15:39 +0100
+Subject: Change the pastebin path in upload-system-info
+
+Forwarded: not-needed
+Last-Update: 2022-11-01
+---
+ scripts/upload-system-info | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/upload-system-info b/scripts/upload-system-info
+index cdb4ae3..a3b2466 100755
+--- a/scripts/upload-system-info
++++ b/scripts/upload-system-info
+@@ -4,7 +4,7 @@ import subprocess, os
+ 
+ try:
+     inxi = subprocess.Popen(['inxi', '-Fxxrzc0'], stdout=subprocess.PIPE)
+-    pastebin = subprocess.Popen(['/usr/bin/pastebin'], stdin=inxi.stdout, stdout=subprocess.PIPE)
++    pastebin = subprocess.Popen(['/usr/share/xapps-common/bin/pastebin'], stdin=inxi.stdout, stdout=subprocess.PIPE)
+     inxi.stdout.close()
+     output = pastebin.communicate()[0]
+     output = output.split()[0] # if we have more than one URL, only use the first one

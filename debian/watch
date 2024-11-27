@@ -1,3 +1,2 @@
 version=4
-opts="dversionmangle=s/\+repack//;s/\+dfsg//;s/\+up[0-9]//,filenamemangle=s/.*\/(.*)/xapp-$1/" \
-  https://github.com/linuxmint/xapps/tags .*/v?(\d.*)\.(?:tgz|tar\.(?:gz|bz2|xz))
+https://github.com/linuxmint/xapp/tags (?:.*?/)?v?(\d[\d.]*)@ARCHIVE_EXT@

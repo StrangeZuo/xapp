@@ -8,18 +8,18 @@ msgstr ""
 "Project-Id-Version: linuxmint\n"
 "Report-Msgid-Bugs-To: FULL NAME <EMAIL@ADDRESS>\n"
 "POT-Creation-Date: 2020-11-25 11:16+0000\n"
-"PO-Revision-Date: 2020-11-26 13:20+0000\n"
-"Last-Translator: Moo <hazap@hotmail.com>\n"
+"PO-Revision-Date: 2022-10-18 19:30+0000\n"
+"Last-Translator: Ernestas Karalius <Unknown>\n"
 "Language-Team: Lithuanian <lt@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Launchpad-Export-Date: 2021-06-25 10:43+0000\n"
-"X-Generator: Launchpad (build 40cc6dba4163ba9ca785b26ad91f43c87d70ba4d)\n"
+"X-Launchpad-Export-Date: 2024-07-21 09:03+0000\n"
+"X-Generator: Launchpad (build bbfa2351d9d6a9ddfe262109428f7bf5516e65d1)\n"
 
 #: libxapp/favorite-vfs-file.c:463
 msgid "Favorites"
-msgstr "Mėgstami"
+msgstr "Mėgstamiausi"
 
 #: libxapp/favorite-vfs-file.c:933 libxapp/favorite-vfs-file.c:963
 #: libxapp/favorite-vfs-file.c:992 libxapp/favorite-vfs-file.c:1026
@@ -78,7 +78,7 @@ msgstr "Emblemos"
 
 #: libxapp/xapp-icon-chooser-dialog.c:113
 msgid "Emoji"
-msgstr "Šypsenėlės"
+msgstr "Jaustukai"
 
 #: libxapp/xapp-icon-chooser-dialog.c:116
 msgid "Mime types"
@@ -123,15 +123,15 @@ msgstr "Pasirinkti"
 #: libxapp/xapp-icon-chooser-dialog.c:605
 #: libxapp/xapp-icon-chooser-dialog.c:1936
 msgid "Cancel"
-msgstr "Atsisakyti"
+msgstr "Atšaukti"
 
 #: libxapp/xapp-icon-chooser-dialog.c:652
 msgid "Allow Paths"
-msgstr "Leisti kelius"
+msgstr "Leisti adresus"
 
 #: libxapp/xapp-icon-chooser-dialog.c:653
 msgid "Whether to allow paths."
-msgstr "Ar leisti kelius."
+msgstr "Ar leisti adresus"
 
 #: libxapp/xapp-icon-chooser-dialog.c:664
 msgid "Default Icon"
@@ -143,15 +143,15 @@ msgstr "Piktograma, kurią naudoti pagal numatymą"
 
 #: libxapp/xapp-icon-chooser-dialog.c:1933
 msgid "Select image file"
-msgstr "Pasirinkti paveikslo failą"
+msgstr "Pasirinkite paveikslėlio failą"
 
 #: libxapp/xapp-icon-chooser-dialog.c:1938
 msgid "Open"
-msgstr "Atverti"
+msgstr "Atidaryti"
 
 #: libxapp/xapp-icon-chooser-dialog.c:1953
 msgid "Image"
-msgstr "Paveikslas"
+msgstr "Paveikslėlis"
 
 #: status-applets/mate/mate-xapp-status-applet.py:330
 msgid "About"

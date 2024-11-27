@@ -28,6 +28,8 @@
 
 #include "xapp-debug.h"
 
+#ifdef ENABLE_DEBUG
+
 static DebugFlags flags = 0;
 static gboolean initialized = FALSE;
 
@@ -38,8 +40,38 @@ static GDebugKey keys[] = {
   { "StatusIcon", XAPP_DEBUG_STATUS_ICON },
   { "SnWatcher", XAPP_DEBUG_SN_WATCHER },
   { "GtkModule", XAPP_DEBUG_MODULE},
+  { "VisibilityGroup", XAPP_DEBUG_VISIBILITY_GROUP},
+  { "GpuOffload", XAPP_DEBUG_GPU_OFFLOAD},
+  { "DarkModeManager", XAPP_DEBUG_DARK_MODE_MANAGER},
   { 0, }
 };
+
+const gchar *
+debug_flag_to_string (DebugFlags flag)
+{
+    switch (flag)
+    {
+    case XAPP_DEBUG_WINDOW:
+        return "GtkWindow";
+    case XAPP_DEBUG_FAVORITES:
+        return "Favorites";
+    case XAPP_DEBUG_FAVORITE_VFS:
+        return "FavoriteVFS";
+    case XAPP_DEBUG_STATUS_ICON:
+        return "StatusIcon";
+    case XAPP_DEBUG_SN_WATCHER:
+        return "SnWatcher";
+    case XAPP_DEBUG_MODULE:
+        return "GtkModule";
+    case XAPP_DEBUG_VISIBILITY_GROUP:
+        return "VisibilityGroup";
+    case XAPP_DEBUG_GPU_OFFLOAD:
+        return "GpuOffload";
+    case XAPP_DEBUG_DARK_MODE_MANAGER:
+        return "DarkModeManager";
+    }
+    return "";
+}
 
 static void
 xapp_debug_set_flags_from_env (void)
@@ -90,6 +122,11 @@ xapp_debug_valist (DebugFlags flag,
     xapp_debug_set_flags_from_env ();
 
   if (flag & flags)
-    g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, args);
+  {
+    // I would think this should be G_LOG_LEVEL_DEBUG, but I can't get it to show up
+    // in the journal/xsession-errors unless I drop it to message (even with G_MESSAGES_DEBUG=all)
+    g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, format, args);
+  }
 }
 
+#endif /* ENABLE_DEBUG */
